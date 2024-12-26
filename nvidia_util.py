@@ -2,7 +2,6 @@ from typing import Any, Optional
 
 import psutil
 from loguru import logger
-# from pynvml import nvmlInit, nvmlShutdown, nvmlSystemGetDriverVersion, nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, nvmlDeviceGetName
 from pynvml import *
 
 
@@ -29,6 +28,14 @@ class NvidiaReader:
     def get_driver_version() -> str:
         return nvmlSystemGetDriverVersion()
 
+    def get_vbios_version(self, index: int) -> str:
+        handle = self.handle_map[index]
+        return nvmlDeviceGetVbiosVersion(handle)
+
+    def get_device_pref(self, index: int) -> str:
+        handle = self.handle_map[index]
+        return nvmlDeviceGetPerformanceState(handle)
+
     def get_device_name(self, index: int) -> str:
         handle = self.handle_map[index]
         return nvmlDeviceGetName(handle)
@@ -38,12 +45,12 @@ class NvidiaReader:
         info = nvmlDeviceGetMemoryInfo(handle)
         return {'total': info.total, 'free': info.free, 'used': info.used}
 
-    def get_device_fan_speed(self, index: int) -> Optional[float]:
+    def get_device_fan_speed(self, index: int) -> float:
         handle = self.handle_map[index]
         try:
-            return nvmlDeviceGetFanSpeed(handle)
+            return nvmlDeviceGetFanSpeed(handle) * 0.01
         except NVMLError:
-            return None
+            return 0
 
     def get_compute_processes(self, index: int) -> list[nvmlFriendlyObject]:
         handle = self.handle_map[index]
@@ -51,11 +58,15 @@ class NvidiaReader:
 
     def get_device_power_usage(self, index: int) -> int:
         handle = self.handle_map[index]
-        return nvmlDeviceGetPowerUsage(handle)
+        return nvmlDeviceGetPowerUsage(handle) * 0.001
 
-    def get_device_power_max(self, index: int) -> Optional[int]:
+    def get_device_power_max(self, index: int) -> int:
         handle = self.handle_map[index]
         try:
-            return nvmlDeviceGetPowerManagementLimit(handle)
+            return nvmlDeviceGetPowerManagementLimit(handle) * 0.001
         except NVMLError:
-            return None
+            return 0
+
+    def get_device_utilize(self,index:int):
+        handle = self.handle_map[index]
+        return nvmlDeviceGetUtilizationRates(handle)
