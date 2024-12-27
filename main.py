@@ -1,4 +1,5 @@
 import prometheus_client
+import psutil
 import uvicorn
 from fastapi import FastAPI
 from loguru import logger
@@ -27,8 +28,11 @@ gpu_memory_total = Gauge('nvidia_gpu_memory_total_bytes', 'Total memory of the G
 gpu_memory_free = Gauge('nvidia_gpu_memory_free_bytes', 'Free memory of the GPU in bytes', ['device'])
 gpu_memory_used = Gauge('nvidia_gpu_memory_used_bytes', 'Used memory of the GPU in bytes', ['device'])
 gpu_fan_speed = Gauge('nvidia_gpu_fan_speed_rpm', 'Fan speed of the GPU in RPM', ['device'])
+gpu_temperature = Gauge('nvidia_gpu_temperature', 'Core temperature', ['device'])
 gpu_power_usage = Gauge('nvidia_gpu_power_usage_watts', 'Power usage of the GPU in watts', ['device'])
 gpu_power_limit = Gauge('nvidia_gpu_power_limit_watts', 'Power limit of the GPU in watts', ['device'])
+
+process_mem_usage = Gauge('nvidia_gpu_process_mem_usage', '', ['device', 'pid', 'name'])
 
 
 @app.get('/metrics')
@@ -38,6 +42,7 @@ def get_metrics():
         driver_info.info({'version': reader.get_driver_version()})
 
         # Iterate through all GPUs
+        process_mem_usage.clear()
         for i in range(reader.device_count):
             device_info.labels(
                 device=str(i),
@@ -59,14 +64,26 @@ def get_metrics():
 
             # Get fan speed and power usage
             fan_speed = reader.get_device_fan_speed(i)
+            temperature = reader.get_device_temperature(i)
             power_usage = reader.get_device_power_usage(i)
             power_limit = reader.get_device_power_max(i)
             # Update Prometheus metrics for fan speed and power usage
             gpu_fan_speed.labels(device=f'device {i}').set(fan_speed)
+            gpu_temperature.labels(device=f'device {i}').set(temperature)
             gpu_power_usage.labels(device=f'device {i}').set(power_usage)
             gpu_power_limit.labels(device=f'device {i}').set(power_limit)
 
-
+            processes = reader.get_compute_processes(i)
+            for process in processes:
+                pid = process.pid
+                mem_use = process.usedGpuMemory
+                if mem_use:
+                    ps = psutil.Process(pid)
+                    process_mem_usage.labels(
+                        device=f'device {i}',
+                        pid=pid,
+                        name=f'({pid}) {ps.username()} -- {ps.name()}',
+                    ).set(mem_use)
 
     # Return Prometheus metrics
     return Response(

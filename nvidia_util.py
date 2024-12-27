@@ -1,7 +1,6 @@
 from typing import Any, Optional
 
 import psutil
-from loguru import logger
 from pynvml import *
 
 
@@ -45,6 +44,10 @@ class NvidiaReader:
         info = nvmlDeviceGetMemoryInfo(handle)
         return {'total': info.total, 'free': info.free, 'used': info.used}
 
+    def get_device_temperature(self, index: int):
+        handle = self.handle_map[index]
+        return nvmlDeviceGetTemperature(handle, 0)
+
     def get_device_fan_speed(self, index: int) -> float:
         handle = self.handle_map[index]
         try:
@@ -67,6 +70,6 @@ class NvidiaReader:
         except NVMLError:
             return 0
 
-    def get_device_utilize(self,index:int):
+    def get_device_utilize(self, index: int):
         handle = self.handle_map[index]
         return nvmlDeviceGetUtilizationRates(handle)
