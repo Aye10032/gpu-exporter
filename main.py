@@ -43,6 +43,7 @@ def get_metrics():
 
         # Iterate through all GPUs
         process_mem_usage.clear()
+        device_info.clear()
         for i in range(reader.device_count):
             device_info.labels(
                 device=str(i),
