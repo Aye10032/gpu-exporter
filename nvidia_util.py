@@ -1,6 +1,5 @@
-from typing import Any, Optional
+from typing import Any
 
-import psutil
 from pynvml import *
 
 
@@ -10,8 +9,7 @@ class NvidiaReader:
 
         self.device_count: int = nvmlDeviceGetCount()
         self.handle_map: dict[int, Any] = {
-            i: nvmlDeviceGetHandleByIndex(i)
-            for i in range(self.device_count)
+            i: nvmlDeviceGetHandleByIndex(i) for i in range(self.device_count)
         }
 
     def __enter__(self):
@@ -42,7 +40,7 @@ class NvidiaReader:
     def get_device_memory_info(self, index: int) -> dict[str, int]:
         handle = self.handle_map[index]
         info = nvmlDeviceGetMemoryInfo(handle)
-        return {'total': info.total, 'free': info.free, 'used': info.used}
+        return {"total": info.total, "free": info.free, "used": info.used}
 
     def get_device_temperature(self, index: int):
         handle = self.handle_map[index]
