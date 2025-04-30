@@ -13,6 +13,9 @@ class NvidiaReader:
     def __enter__(self):
         return self
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
     @staticmethod
     def get_driver_version() -> str:
         return nvmlSystemGetDriverVersion()
@@ -32,7 +35,7 @@ class NvidiaReader:
     def get_device_memory_info(self, index: int) -> dict[str, int]:
         handle = self.handle_map[index]
         info = nvmlDeviceGetMemoryInfo(handle)
-        return {"total": info.total, "free": info.free, "used": info.used}
+        return {'total': info.total, 'free': info.free, 'used': info.used}
 
     def get_device_temperature(self, index: int):
         handle = self.handle_map[index]
