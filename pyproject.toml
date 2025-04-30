@@ -12,3 +12,11 @@ dependencies = [
     "psutil>=7.0.0",
     "uvicorn>=0.34.0",
 ]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = true
+skip-magic-trailing-comma = true

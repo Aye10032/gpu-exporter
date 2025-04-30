@@ -1,22 +1,31 @@
+from contextlib import asynccontextmanager
+
 import prometheus_client
 import psutil
 import uvicorn
 from fastapi import FastAPI
 from loguru import logger
 from prometheus_client import Info, Gauge
+from pynvml import nvmlInit, nvmlShutdown
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 
 from nvidia_util import NvidiaReader
 
-app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=['*'],
-    allow_methods=['*'],
-    allow_headers=['*']
-)
+@asynccontextmanager
+async def lifespan(main_app: FastAPI):  # pylint: disable=unused-argument
+    nvmlInit()
+    logger.info('pynvml init')
+    yield
+
+    nvmlShutdown()
+    logger.info('server stop')
+
+
+app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 
 # Define Prometheus metrics
 driver_info = Info('nvidia_driver_version', 'NVIDIA driver version')
@@ -24,13 +33,23 @@ driver_info = Info('nvidia_driver_version', 'NVIDIA driver version')
 device_info = Gauge('nvidia_device_info', '', ['device', 'name', 'v_bios', 'p_state'])
 gpu_cuda_utilize = Gauge('nvidia_gpu_cuda_utilize', '', ['device'])
 gpu_mem_utilize = Gauge('nvidia_gpu_mem_utilize', '', ['device'])
-gpu_memory_total = Gauge('nvidia_gpu_memory_total_bytes', 'Total memory of the GPU in bytes', ['device'])
-gpu_memory_free = Gauge('nvidia_gpu_memory_free_bytes', 'Free memory of the GPU in bytes', ['device'])
-gpu_memory_used = Gauge('nvidia_gpu_memory_used_bytes', 'Used memory of the GPU in bytes', ['device'])
+gpu_memory_total = Gauge(
+    'nvidia_gpu_memory_total_bytes', 'Total memory of the GPU in bytes', ['device']
+)
+gpu_memory_free = Gauge(
+    'nvidia_gpu_memory_free_bytes', 'Free memory of the GPU in bytes', ['device']
+)
+gpu_memory_used = Gauge(
+    'nvidia_gpu_memory_used_bytes', 'Used memory of the GPU in bytes', ['device']
+)
 gpu_fan_speed = Gauge('nvidia_gpu_fan_speed_rpm', 'Fan speed of the GPU in RPM', ['device'])
 gpu_temperature = Gauge('nvidia_gpu_temperature', 'Core temperature', ['device'])
-gpu_power_usage = Gauge('nvidia_gpu_power_usage_watts', 'Power usage of the GPU in watts', ['device'])
-gpu_power_limit = Gauge('nvidia_gpu_power_limit_watts', 'Power limit of the GPU in watts', ['device'])
+gpu_power_usage = Gauge(
+    'nvidia_gpu_power_usage_watts', 'Power usage of the GPU in watts', ['device']
+)
+gpu_power_limit = Gauge(
+    'nvidia_gpu_power_limit_watts', 'Power limit of the GPU in watts', ['device']
+)
 
 process_mem_usage = Gauge('nvidia_gpu_process_mem_usage', '', ['device', 'pid', 'name'])
 
@@ -49,7 +68,7 @@ def get_metrics():
                 device=str(i),
                 name=reader.get_device_name(i),
                 v_bios=reader.get_vbios_version(i),
-                p_state=reader.get_device_pref(i)
+                p_state=reader.get_device_pref(i),
             ).set(1)
 
             utilize = reader.get_device_utilize(i)
@@ -87,10 +106,7 @@ def get_metrics():
                     ).set(mem_use)
 
     # Return Prometheus metrics
-    return Response(
-        content=prometheus_client.generate_latest(),
-        media_type='text/plain'
-    )
+    return Response(content=prometheus_client.generate_latest(), media_type='text/plain')
 
 
 def main() -> None:
