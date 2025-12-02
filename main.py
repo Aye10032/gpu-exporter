@@ -98,12 +98,15 @@ def get_metrics():
                 pid = process.pid
                 mem_use = process.usedGpuMemory
                 if mem_use:
-                    ps = psutil.Process(pid)
-                    process_mem_usage.labels(
-                        device=f'device {i}',
-                        pid=pid,
-                        name=f'({pid}) {ps.username()} -- {ps.name()}',
-                    ).set(mem_use)
+                    try:
+                        ps = psutil.Process(pid)
+                        process_mem_usage.labels(
+                            device=f'device {i}',
+                            pid=pid,
+                            name=f'({pid}) {ps.username()} -- {ps.name()}',
+                        ).set(mem_use)
+                    except psutil.NoSuchProcess:
+                        logger.warning(f'Process {pid} not found!')
 
     # Return Prometheus metrics
     return Response(content=prometheus_client.generate_latest(), media_type='text/plain')
